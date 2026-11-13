@@ -1,5 +1,15 @@
 # Histórico / Changelog
 
+## 1.0.2 — 2026-11-13
+
+- Estende a conferência de retornos às chamadas de preparação/limpeza das
+  fixtures de teste para compatibilidade com o compilador Ubuntu.
+- Mantém as verificações de compilação e os testes habilitados.
+
+Check fixture setup/cleanup results under fortified native builds; no tests or
+compiler error checks are disabled.
+
+
 ## 1.0.1 — 2026-11-13
 
 - Corrige a conferência do retorno de escrita no processo filho, permitindo

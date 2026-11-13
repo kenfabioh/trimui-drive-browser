@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v1.0.1
+          ref: v1.0.2
           persist-credentials: false
       - name: Confirm approved release target
         run: |
-          test "$(git rev-parse HEAD)" = "$(git rev-parse 'v1.0.1^{commit}')"
-          test "$(cat VERSION)" = 1.0.1
-          test "$(gh release view v1.0.1 --json isDraft --jq .isDraft)" = true
+          test "$(git rev-parse HEAD)" = "$(git rev-parse 'v1.0.2^{commit}')"
+          test "$(cat VERSION)" = 1.0.2
+          test "$(gh release view v1.0.2 --json isDraft --jq .isDraft)" = true
       - name: Build prerequisites
         run: |
           sudo apt-get update
@@ -55,14 +55,14 @@ jobs:
           tail -n 30 build/release.log
       - name: Upload and verify release assets
         run: |
-          gh release upload v1.0.1 dist/DriveBrowser-1.0.1-arm64.zip dist/DriveBrowser-1.0.1-arm64.zip.sha256
+          gh release upload v1.0.2 dist/DriveBrowser-1.0.2-arm64.zip dist/DriveBrowser-1.0.2-arm64.zip.sha256
           mkdir -p build/download-verify
-          gh release download v1.0.1 --dir build/download-verify --pattern 'DriveBrowser-1.0.1-arm64.zip*'
+          gh release download v1.0.2 --dir build/download-verify --pattern 'DriveBrowser-1.0.2-arm64.zip*'
           cd build/download-verify
-          sha256sum -c DriveBrowser-1.0.1-arm64.zip.sha256
-          cmp DriveBrowser-1.0.1-arm64.zip ../../dist/DriveBrowser-1.0.1-arm64.zip
+          sha256sum -c DriveBrowser-1.0.2-arm64.zip.sha256
+          cmp DriveBrowser-1.0.2-arm64.zip ../../dist/DriveBrowser-1.0.2-arm64.zip
       - name: Publish verified release
         run: |
-          test "$(gh release view v1.0.1 --json assets --jq '.assets | length')" = 2
-          gh release edit v1.0.1 --draft=false --latest
-          gh release view v1.0.1 --json url,isDraft,assets
+          test "$(gh release view v1.0.2 --json assets --jq '.assets | length')" = 2
+          gh release edit v1.0.2 --draft=false --latest
+          gh release view v1.0.2 --json url,isDraft,assets

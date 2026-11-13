@@ -101,7 +101,7 @@ struct UiTest {
         press(app,SDL_CONTROLLER_BUTTON_A);
         check(!app.letterMode && app.path==std::vector<std::string>({"zz-alfabeto"}),"B leaves letters without navigating out of folder");
         focusName(app,"M01.zip");
-        unlink("source/zz-alfabeto/M01.zip");
+        if(unlink("source/zz-alfabeto/M01.zip")) throw std::runtime_error("fixture unlink failed");
         press(app,SDL_CONTROLLER_BUTTON_START);press(app,SDL_CONTROLLER_BUTTON_DPAD_DOWN);press(app,SDL_CONTROLLER_BUTTON_B);wait(app);
         check(app.cursor<app.rows.size() && app.rows[app.cursor].name!="M01.zip","removed source falls back to a valid nearby row");
         press(app,SDL_CONTROLLER_BUTTON_A);wait(app);
@@ -228,7 +228,7 @@ struct UiTest {
         {std::ofstream f("data/slow-search");f<<"slow";}
         press(app,SDL_CONTROLLER_BUTTON_Y);
         check(app.loading,"slow recursive search started");
-        press(app,SDL_CONTROLLER_BUTTON_A);wait(app);unlink("data/slow-search");
+        press(app,SDL_CONTROLLER_BUTTON_A);wait(app);if(unlink("data/slow-search")) throw std::runtime_error("fixture unlink failed");
         check(app.screen==Screen::Keyboard && app.status.find("cancelada")!=app.status.npos,"B cancels running search without publishing partial results");
         press(app,SDL_CONTROLLER_BUTTON_A);wait(app);
         press(app,SDL_CONTROLLER_BUTTON_B);wait(app);

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 static int checks=0;
+static void setup(int result) {if(result!=0)throw std::runtime_error("fixture system call failed");}
 static void check(bool ok,const std::string& message) {++checks;if(!ok)throw std::runtime_error(message);}
 static void rejects(std::function<void()> f,const std::string& message) {
     bool thrown=false;try{f();}catch(const std::exception&){thrown=true;}check(thrown,message);
@@ -28,7 +29,7 @@ int main(int argc,char** argv) {
         if(argc!=2)throw std::runtime_error("usage: core-test /absolute/path/to/rclone");
         char tmp[]="/tmp/drivebrowser-test-XXXXXX";auto* p=mkdtemp(tmp);if(!p)throw std::runtime_error("mkdtemp");
         std::string base=p, sd=base+"/sd", root=sd+"/downloads", source=base+"/source";
-        mkdir(sd.c_str(),0700);mkdir(source.c_str(),0700);
+        setup(mkdir(sd.c_str(),0700));setup(mkdir(source.c_str(),0700));
         std::string conf=base+"/rclone.conf";
         writeFile(conf,"[fixture]\ntype = local\n[drive-example]\ntype = drive\nscope = drive.readonly\n");
         Backend backend={argv[1],conf,base+"/cache",""};
@@ -71,12 +72,12 @@ int main(int argc,char** argv) {
         rejects([&]{Destination d(sd,base+"/outside",{},true);},"outside root");
         rejects([&]{Destination d(sd,sd+"-evil/downloads",{},true);},"prefix boundary");
         Destination dest(sd,root,{},true);
-        mkdir((root+"/subpasta ç").c_str(),0700);
-        symlink(base.c_str(),(root+"/escape").c_str());
+        setup(mkdir((root+"/subpasta ç").c_str(),0700));
+        setup(symlink(base.c_str(),(root+"/escape").c_str()));
         check(dest.directories().size()==1,"symlinks excluded from local listing");
         rejects([&]{Destination d(sd,root,{"escape"});},"symlink traversal");
         rejects([&]{Destination d(sd,root,{".."});},"parent traversal");
-        symlink(base.c_str(),(sd+"/badroot").c_str());
+        setup(symlink(base.c_str(),(sd+"/badroot").c_str()));
         rejects([&]{Destination d(sd,sd+"/badroot",{},true);},"symlink root");
         Process query;
         query.start(backend.command("listremotes",{"--json","--source","file"}));wait(query);
@@ -85,7 +86,7 @@ int main(int argc,char** argv) {
         std::string name="Olá 世界 ; $(touch PWN) ' \".bin";
         std::string payload(256000,'q');payload+="Unicode final ç😀\n";
         writeFile(source+"/"+name,payload);writeFile(source+"/empty","");
-        mkdir((source+"/folder").c_str(),0700);
+        setup(mkdir((source+"/folder").c_str(),0700));
         query.start(backend.command("lsjson",{"--","fixture:"+source}));wait(query);
         auto listing=parseEntries(query.output);
         check(query.result()==0 && listing.size()==3 && listing[0].directory,"real rclone folder list");
@@ -98,7 +99,7 @@ int main(int argc,char** argv) {
         check(d.message.find(name)!=std::string::npos,"completion identifies downloaded file");
         writeFile(root+"/.drivebrowser-fixture.part","partial");
         check(dest.contents().size()==localFiles.size(),"local contents hide partials and symlinks");
-        unlink((root+"/.drivebrowser-fixture.part").c_str());
+        setup(unlink((root+"/.drivebrowser-fixture.part").c_str()));
         writeFile(source+"/folder/Áção.zip","nested content");
         query.start(backend.command("lsjson",{"--recursive","--","fixture:"+source}));wait(query);
         auto found=searchEntries(query.output,"acao");
@@ -108,7 +109,7 @@ int main(int argc,char** argv) {
         check(access("PWN",F_OK)!=0,"no shell interpolation");
         rejects([&]{d.start(backend,"fixture:"+source+"/"+name,name,payload.size(),dest);},"no overwrite existing");
         check(readFile(root+"/"+name)==payload,"existing content unchanged");
-        symlink((base+"/outside").c_str(),(root+"/symlink-file").c_str());
+        setup(symlink((base+"/outside").c_str(),(root+"/symlink-file").c_str()));
         rejects([&]{d.start(backend,"fixture:"+source+"/empty","symlink-file",0,dest);},"no symlink output");
         d.start(backend,"fixture:"+source+"/empty","zero",0,dest);wait(d);
         check(d.success && access((root+"/zero").c_str(),F_OK)==0,"zero byte file");
@@ -118,7 +119,7 @@ int main(int argc,char** argv) {
         check(!d.success && access((root+"/wrong-size").c_str(),F_OK)!=0,"size mismatch not published");
         // Deterministic slow/error children test cancellation and partial cleanup.
         auto slow=base+"/slow";
-        writeFile(slow,"#!/bin/sh\nprintf partial\nsleep 20\n");chmod(slow.c_str(),0700);
+        writeFile(slow,"#!/bin/sh\nprintf partial\nsleep 20\n");setup(chmod(slow.c_str(),0700));
         Backend slowBackend={slow,conf,base,""};
         d.start(slowBackend,"fixture:x","cancelled",-1,dest);
         usleep(60000);d.tick();check(d.active && d.bytes>0,"partial progress measured");
@@ -141,8 +142,8 @@ int main(int argc,char** argv) {
         check(transferError(1,"invalid_grant https://secret").find("https")==std::string::npos,"error redaction");
         // Directory FD remains confined if a path is replaced after selection.
         Destination pinned(sd,root,{"subpasta ç"});
-        rename((root+"/subpasta ç").c_str(),(root+"/moved").c_str());
-        symlink(base.c_str(),(root+"/subpasta ç").c_str());
+        setup(rename((root+"/subpasta ç").c_str(),(root+"/moved").c_str()));
+        setup(symlink(base.c_str(),(root+"/subpasta ç").c_str()));
         d.start(backend,"fixture:"+source+"/empty","pinned",0,pinned);wait(d);
         check(d.success && access((root+"/moved/pinned").c_str(),F_OK)==0 && access((base+"/pinned").c_str(),F_OK)!=0,"descriptor pinning prevents path swap escape");
         std::cout<<"PASS "<<checks<<" checks; fixtures: "<<base<<"\n";

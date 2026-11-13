@@ -17,6 +17,7 @@ de pacotes instalados: as dependências de execução acompanham o ZIP.
 
 ```sh
 make deps
+make pager
 make arm64 native
 make test test-fallback test-arm64
 make test-input test-input-arm64
@@ -27,7 +28,10 @@ python3 scripts/verify_package.py
 ```
 
 `make deps` baixa artefatos oficiais com hashes fixados para `.deps/`, sem root ou
-Docker. São aproximadamente 440 MiB de downloads e 1,6–2 GiB extraídos. Para
+Docker. O SDK ocupa aproximadamente 440 MiB de downloads e 1,6–2 GiB extraídos.
+`make pager` também baixa Go 1.24.0, o fonte rclone 1.69.1 e módulos Go fixados;
+reserve vários GiB adicionais para fontes e caches. O pacote ARM não precisa
+do compilador Go em execução. [Construção e testes da paginação](docs/PAGINATION.md). Para
 somente compilar ARM, use `python3 scripts/fetch_deps.py --skip-native` e
 `make arm64`. Não desative TLS, assinaturas ou verificações de hash.
 
@@ -49,8 +53,12 @@ genérico sem verificar símbolos GLIBC e testar a execução.
   cancelamento, falhas, tamanho, espaço, caminhos confinados e não sobrescrita.
 - `test-input`, `test-input-arm64`: repetição, zona morta, diagonais e parada.
 - `test-ui`, `test-ui-arm64`: eventos SDL, teclado, pesquisa, seleção, destino,
-  download, retorno ao item e faixa de letras. A descoberta é simulada como Drive;
-  listagem/leitura usam rclone real sobre arquivos locais, sem credenciais.
+  download, retorno ao item, faixa de letras, paginação, cache e preferências.
+  A descoberta é simulada como Drive; listagem/leitura usam rclone real sobre
+  arquivos locais. O transporte paginado é uma fixture; `make pager` testa o
+  helper de produção contra respostas HTTP simuladas, inclusive em ARM64.
+- `pager`: testes HTTP do helper, limite real por consulta, token, Drive
+  compartilhado, duplicatas, erros e resposta incompleta; builds estáticos Go.
 - `smoke-*`: SDL, fontes, renderização, menu e captura. ARM64 usa `offscreen`.
 - `verify_package.py`: estrutura, CRC, hashes, ícone RGBA 300x300, executáveis
   AArch64, símbolos GLIBC e ausência de configurações privadas.

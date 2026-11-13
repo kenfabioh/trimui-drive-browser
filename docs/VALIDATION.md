@@ -1,5 +1,49 @@
 # Validacao e historico
 
+## Versao 1.1.0 — paginacao configuravel
+
+A nova listagem usa um helper compilado do rclone 1.69.1 com Go 1.24.0,
+estatico para ARM64. O binario executou em QEMU, incluindo testes HTTP locais
+do codigo de producao. O agente nao executou o app com credenciais reais nem
+no console fisico. Apos receber o ZIP 1.1.0, o mantenedor relatou que ficou
+funcionando corretamente e autorizou a publicacao. Esse relato nao e uma
+medicao independente nem confirma todos os cenarios de falha e mapeamentos.
+
+Resultados desta preparacao:
+
+* **76 verificacoes de backend** por modo: nativo, fallback e ARM64 emulado.
+  Incluem quantidade padrao/personalizada/invalida, protocolo paginado e comandos
+  restritos a leitura, alem das protecoes anteriores de transferencia e caminhos.
+* **126 verificacoes de interface por arquitetura** (nativa e ARM64), cobrindo paginas
+  50/50/23 numa pasta de 123 arquivos, primeira/ultima pagina, quantidade 17,
+  cancelamento/falha com preservacao da lista e nova tentativa, retorno com B ao
+  arquivo baixado da segunda pagina, gatilhos com controle de repeticao,
+  eviccao/recarregamento de paginas e cache com ate 32 conteudos residentes.
+* Menu de quantidade: previa sem aplicar, B descarta, A persiste sem perder
+  preferencias, invalida tokens antigos e aplica na primeira pagina sem reiniciar.
+  Capturas SDL de pagina e menu sao geradas junto das capturas anteriores.
+* **Sete cenarios HTTP do helper** passaram nativos e em ARM64: consulta limitada
+  a um lote, continuacao opaca, pagina vazia com token, duplicatas de arquivo e
+  arquivo/pasta, busca exata de borda limitada a dois resultados, token invalido,
+  resposta incompleta e parametros de Drive compartilhado. O servidor recusa
+  metodos diferentes de GET. Nao ha acesso a uma conta Google nesses testes.
+* **33 verificacoes de navegacao por arquitetura**; builds Cortex-A53 e nativo
+  com `-Werror`; smoke SDL nativo e ARM64 `offscreen`. Capturas do indicador de
+  pagina e menu de quantidade foram inspecionadas em 1280x720.
+
+O ZIP inclui helper estatico, fontes/patch de build, licencas dos modulos Go e
+exemplo `page_size: 50`. A auditoria verifica os tres executaveis AArch64,
+manifesto SHA256, CRC, GLIBC, icone aprovado e ausencia de configuracao privada.
+
+Validacao adicional no **TrimUI original/CrossMix 1.3.0 com Drive real**: L/R e L2/R2
+fisicos, menu persistido depois de fechar/reabrir, pasta com muitas paginas,
+acentos/atalhos/Drive compartilhado quando utilizados, expiracao de token e
+mudancas na pasta durante navegacao. Medir tempo de primeira pagina e memoria
+no aparelho: nao foi medido ganho de velocidade real. A faixa de iniciais agora
+opera apenas na pagina atual; pesquisa continua recursiva e sem ganho comprovado.
+A publicacao foi autorizada pelo mantenedor apos o relato de funcionamento.
+O workflow de publicacao e manual e verifica testes e assets antes de publicar.
+
 ## Versao 1.0.0 — consolidacao para distribuicao
 
 O mantenedor relatou funcionamento do conjunto de recursos ate a v0.4 no modelo

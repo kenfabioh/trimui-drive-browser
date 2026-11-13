@@ -1,11 +1,11 @@
 # Guia detalhado — Drive Browser
 
-Versao **1.0.2** de um navegador grafico do Google Drive
+Versao **1.1.0** de um navegador grafico do Google Drive
 para o TrimUI Smart Pro original com CrossMix OS 1.3.0. Interface C++/SDL2 em
 1280 × 720, backend rclone 1.69.1 ARM64 e dados no microSD.
 
 O mantenedor relatou funcionamento do conjunto atual no modelo alvo.
-A versao 1.0 consolida essas funcionalidades e o icone de 300x300; os testes
+A paginacao da versao 1.1 tambem foi confirmada pelo mantenedor no seu aparelho; os testes
 automatizados usam fixtures locais e nao substituem testes em outros aparelhos.
 Backend, interface e dependencias foram testados em Linux e
 emulacao ARM64, com fixtures locais, sem credenciais reais do Google.
@@ -14,7 +14,7 @@ Veja [evidencias e validacao pendente](VALIDATION.md) e
 
 ## Instalar
 
-1. Extraia `DriveBrowser-1.0.2-arm64.zip` na **raiz do microSD**. O resultado deve
+1. Extraia `DriveBrowser-1.1.0-arm64.zip` na **raiz do microSD**. O resultado deve
    ser `Apps/DriveBrowser/launch.sh` (nao `Apps/Apps/DriveBrowser`).
 2. Copie o seu **rclone.conf autenticado existente** para
    `Apps/DriveBrowser/config/rclone.conf`. Nao renomeie o exemplo como se ele
@@ -49,6 +49,7 @@ arquivos de configuracao pessoais e nao exige refazer o login.
 | X no seletor de destino | Baixar na pasta exibida |
 | Start | Menu: destino, atualizar, remotes, informacoes, pesquisa, sair |
 | Select | Alternar foco entre arquivos e faixa de letras no rodape |
+| L / R (tambem L2 / R2) | Pagina anterior / proxima no Drive |
 
 **Segurar** uma direcao do direcional ou do analogico esquerdo continua movendo
 o cursor. O primeiro passo e imediato; a repeticao comeca apos 350 ms, a cada
@@ -79,10 +80,35 @@ Depois de falha/cancelamento, X na pasta de destino tenta de novo. Se o tamanho
 remoto mudou, volte ao Drive e atualize a listagem primeiro.
 Durante uma operacao, B cancela; o menu fica disponivel depois de ela terminar.
 
+## Paginas do Google Drive
+
+Por padrao sao consultados ate **50 itens por pagina**, incluindo pastas.
+Use **L** para voltar e **R** para avancar. A primeira pagina nao exige listar
+o restante da pasta. Pastas ja visitadas e o retorno do download reutilizam
+paginas em memoria; B retorna ao arquivo baixado na pagina correspondente.
+Start > Atualizar limpa o cache da pasta e recomeca na pagina 1.
+
+**Start > Itens por pagina** permite ajustar com esquerda/direita e salvar com
+**A**, sem precisar de computador. Opcoes: 10, 25, 50, 100, 200, 500 e 1000.
+**B** sai sem aplicar uma alteracao nao salva. A escolha salva fica em
+`config/settings.json`, preservando as outras preferencias. Ao voltar ao Drive,
+a lista recomeca na pagina 1 com a nova quantidade.
+
+Para uma quantidade personalizada, feche o app e defina `"page_size": 75` nesse
+arquivo; sao aceitos inteiros de 1 a 1000. Sem o campo, usa 50. Valores maiores
+aumentam a memoria e podem demorar mais. O indicador mostra pagina atual e
+limite escolhido, sem inventar uma contagem total que exigiria listar tudo.
+
+A API pode retornar menos itens ou uma pagina vazia com continuacao, especialmente
+com documentos Google omitidos; R continua quando ha proxima pagina. Falha ou
+cancelamento preserva a pagina anterior. Tokens expirados exigem atualizar.
+A pesquisa recursiva continua abrangendo toda a subarvore, sem esse limite por
+pagina. [Detalhes tecnicos e limites](PAGINATION.md).
+
 ## Saltar pela inicial
 
 Nas listas do Drive, resultados de pesquisa e pasta local, aperte **Select**
-para selecionar a faixa de letras. Use direcional ou analogico esquerdo para
+para selecionar a faixa de letras. No Drive, ela opera apenas na pagina atual. Use direcional ou analogico esquerdo para
 escolher um grupo; o cursor salta ao primeiro arquivo correspondente:
 
 * **Inicio**: primeiro arquivo da lista, mesmo quando ha pastas antes dele.
@@ -134,8 +160,9 @@ Para permitir outras pastas, copie `config/settings.example.json` para
     "/mnt/SDCARD/Downloads/DriveBrowser",
     "/mnt/SDCARD/Roms"
   ],
+  "page_size": 50,
   "download_buffer_mib": 16,
-  "buttons": {"up":11,"down":12,"left":13,"right":14,"a":1,"b":0,"x":3,"start":6,"select":4}
+  "buttons": {"up":11,"down":12,"left":13,"right":14,"a":1,"b":0,"x":3,"start":6,"select":4,"l":9,"r":10,"l2":16,"r2":17}
 }
 ```
 
@@ -154,7 +181,8 @@ Caso o firmware mapeie diferente, ajuste o arquivo. A tela de informacoes mostra
 o driver e o numero de controles; o mapeamento real precisa ser validado no console.
 Select usa SDL BACK (4) por padrao. Arquivos antigos sem `select` continuam
 validos com esse default. No computador: setas, Enter=A, Esc=B, x=X, Tab=Start,
-F1=Select.
+F1=Select, PageUp=L e PageDown=R. L/R usam SDL shoulders (9/10);
+L2/R2 usam eixos SDL de gatilho ou botoes brutos 16/17.
 No teclado de pesquisa, tambem e possivel digitar com teclado fisico: Enter
 pesquisa, Backspace apaga e Esc volta.
 
@@ -189,7 +217,8 @@ de memoria, cancelamento e seguranca dos destinos.
 
 * Configuracao em `config/`, cache/temporarios em `data/`, tudo no microSD.
   O rclone pode atualizar o token OAuth no proprio `rclone.conf`.
-* O programa so emite `listremotes`, `lsjson` e `cat`. Nao cria, edita ou apaga
+* O programa so emite `listremotes`, `lsjson`, `cat` e a extensao de leitura
+  `backend drivebrowser-page`. Nao cria, edita ou apaga
   arquivos remotos. Isso **nao reduz os privilegios de um token preexistente**;
   use uma configuracao criada com `drive.readonly` se precisar garantir a
   restricao tambem na credencial.
@@ -217,7 +246,7 @@ sem exportacao de documentos nativos Google (omitidos da lista), pesquisa por no
 sem fila, sem login na interface e sem fontes para todos os alfabetos.
 Espacos, acentos e Unicode sao preservados no caminho e no arquivo; glifos nao
 presentes em DejaVu Sans podem aparecer como quadrados (nao alteram o nome).
-Pastas acima de 16 MiB de JSON exigem subdivisao. Consultas podem ser canceladas
+Cada resposta JSON tem limite de 16 MiB. Consultas podem ser canceladas
 e tem limite total de 90 segundos (pesquisa: 300); leitura de rede usa timeout de inatividade.
 
 ## Compilar e testar (Linux x86_64)
@@ -228,6 +257,7 @@ desses pacotes precisa ser instalado no console.
 
 ```sh
 make deps                 # artefatos oficiais, hashes fixados, instalacao local .deps/
+make pager               # Go/rclone fixados; testa e compila paginacao amd64/ARM64
 make arm64               # SDK TrimUI, Cortex-A53, glibc requerida <= 2.23
 make test test-fallback   # backend real rclone com remote local de fixture
 make test-arm64          # mesmo backend ARM64 via QEMU + rclone ARM64
@@ -235,7 +265,7 @@ make test-ui test-ui-arm64 # teclado, pesquisa, selecao e download com rclone lo
 make test-input test-input-arm64 # repeticao, zona morta e arbitragem das direcoes
 make smoke-native        # SDL do computador, botoes simulados/menu/captura
 make smoke-arm64         # SDL do pacote, driver offscreen, via QEMU
-make package             # dist/DriveBrowser-1.0.2-arm64.zip e SHA256
+make package             # dist/DriveBrowser-1.1.0-arm64.zip e SHA256
 python3 scripts/verify_package.py
 ```
 

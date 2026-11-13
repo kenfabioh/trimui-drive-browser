@@ -66,6 +66,20 @@ static std::vector<unsigned> searchKey(const std::string& text) {
     }
     return out;
 }
+size_t configuredPageSize(const Json& settings) {
+    auto j=settings.value("page_size",Json(50));
+    if(!j.is_number_integer() || j.get<long long>()<1 || j.get<long long>()>1000)
+        throw std::runtime_error("page_size deve ser um inteiro entre 1 e 1000");
+    return j.get<size_t>();
+}
+RemotePage parseRemotePage(const std::string& data,size_t limit) {
+    auto j=Json::parse(data);
+    auto entries=parseEntries(j.at("Entries").dump());
+    auto next=j.at("NextPageToken").get<std::string>();
+    if(entries.size()>limit || next.size()>32768 || next.find('\0')!=next.npos)
+        throw std::runtime_error("Pagina remota invalida");
+    return {std::move(entries),next};
+}
 bool matchesSearch(const std::string& name,const std::string& term) {
     auto n=searchKey(name),t=searchKey(term);
     return !t.empty() && std::search(n.begin(),n.end(),t.begin(),t.end())!=n.end();
@@ -124,7 +138,9 @@ std::string transferError(int code,const std::string& raw) {
         {"timeout","Conexao excedeu o tempo limite"},{"no such host","Falha de DNS/conexao"},
         {"network is unreachable","Sem conexao de rede"},{"no space left","MicroSD sem espaco"},
         {"certificate","Certificado TLS recusado; confira data/hora e certificados"},
-        {"encrypted","Configuracao criptografada nao suportada; use uma copia descriptografada"}})
+        {"encrypted","Configuracao criptografada nao suportada; use uma copia descriptografada"},
+        {"page token","Pagina expirada; Start > Atualizar pasta reinicia a listagem"},
+        {"duplicate names","Nomes duplicados no Drive; renomeie os itens antes de baixar"}})
         if(raw.find(item.first)!=std::string::npos) {reason=item.second;break;}
     return "rclone ("+std::to_string(code)+"): "+reason+". Start/X permite tentar novamente.";
 }
@@ -190,11 +206,16 @@ Process::~Process() {
     if (err_>=0) close(err_);
 }
 std::vector<std::string> Backend::command(const std::string& verb,const std::vector<std::string>& args) const {
-    if (verb!="listremotes" && verb!="lsjson" && verb!="cat") throw std::runtime_error("Operacao remota proibida");
+    if (verb!="listremotes" && verb!="lsjson" && verb!="cat" && verb!="page") throw std::runtime_error("Operacao remota proibida");
     std::vector<std::string> a={executable,"--config",config,"--ask-password=false","--cache-dir",cache,
         "--contimeout","15s","--timeout","30s","--retries","2","--low-level-retries","2",
         "--use-json-log","--stats","1s","--stats-log-level","NOTICE"};
     if (!ca.empty()) { a.push_back("--ca-cert"); a.push_back(ca); }
+    if(verb=="page") {
+        if(args.size()!=3) throw std::runtime_error("Parametros de pagina invalidos");
+        a.insert(a.end(),{"--drive-skip-gdocs","backend","drivebrowser-page","--"});
+        a.insert(a.end(),args.begin(),args.end());return a;
+    }
     if(verb=="cat") {
         if(downloadBufferMiB<1 || downloadBufferMiB>64) throw std::runtime_error("Buffer deve estar entre 1 e 64 MiB");
         a.push_back("--buffer-size");a.push_back(std::to_string(downloadBufferMiB)+"Mi");

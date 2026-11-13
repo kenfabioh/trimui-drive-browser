@@ -43,6 +43,16 @@ int main(int argc,char** argv) {
         rejects([]{parseEntries("[bad");},"malformed JSON");
         rejects([]{parseEntries(R"([{"Name":"same","IsDir":false},{"Name":"same","IsDir":false}])");},"ambiguous duplicate Drive names");
         rejects([&]{backend.command("delete",{});},"remote mutation forbidden");
+        check(configuredPageSize(Json::object())==50,"default 50 items per page");
+        check(configuredPageSize(Json{{"page_size",17}})==17,"custom page size");
+        for(const auto& j:{Json(0),Json(1001),Json("50"),Json(1.5),Json(true)})
+            rejects([&]{configuredPageSize(Json{{"page_size",j}});},"invalid page size rejected");
+        auto page=parseRemotePage(R"({"Entries":[{"Name":"x","IsDir":false,"Size":3}],"NextPageToken":"opaque+/="})",1);
+        check(page.entries.size()==1 && page.next=="opaque+/=","page entries and opaque token parsed");
+        rejects([]{parseRemotePage(R"({"Entries":[{"Name":"x","IsDir":false},{"Name":"y","IsDir":false}],"NextPageToken":""})",1);},"oversized page rejected");
+        rejects([]{parseRemotePage(R"({"Entries":[],"NextPageToken":4})",50);},"invalid token type rejected");
+        auto pageArgs=backend.command("page",{"fixture:","opaque+/=","50"});
+        check(std::find(pageArgs.begin(),pageArgs.end(),"drivebrowser-page")!=pageArgs.end(),"page command limited to read-only extension");
         check(matchesSearch("ÁÇÃO Final.ZIP","acao"),"Latin case and accent folding");
         check(matchesSearch("ac\xCC\xA7" "a\xCC\x83o.zip","AÇÃO"),"decomposed Unicode accents");
         check(matchesSearch("世界 arquivo😀","世界") && matchesSearch("世界 arquivo😀","😀"),"Unicode exact search");

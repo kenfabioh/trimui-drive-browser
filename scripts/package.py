@@ -44,6 +44,9 @@ def main():
     for f in (stage / "launch.sh", stage / "bin/rclone", stage / "bin/drive-browser"):
         f.chmod(0o755)
     copy_libraries(a.sdk, stage / "lib")
+    shutil.copyfile(a.sdk / "rclone-page-arm64",stage / "bin/rclone-page")
+    (stage / "bin/rclone-page").chmod(0o755)
+    shutil.copytree(a.sdk / "rclone-page-licenses",stage / "licenses/pager")
     public_docs=("README.md", "README.en.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE")
     for name in public_docs:
         body=Path(name).read_text().replace('src="app/icon.png"','src="icon.png"').replace('](app/licenses/','](licenses/')

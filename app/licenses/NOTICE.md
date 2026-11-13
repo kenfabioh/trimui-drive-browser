@@ -20,6 +20,10 @@ Icone original do projeto, sob a mesma licenca.
   https://github.com/gcc-mirror/gcc/tree/releases/gcc-7.5.0
 * rclone 1.69.1: MIT. Binario oficial ARM64 sem modificacoes,
   https://github.com/rclone/rclone/tree/v1.69.1
+* rclone-page: fonte rclone 1.69.1 modificado pela extensao Drive Browser MIT,
+  compilado estaticamente com Go 1.24.0. Fonte da extensao e licenca em
+  source/third_party/rclone-page/; patch e hashes em source/scripts/build_pager.py.
+  Licencas dos modulos compilados e runtime Go em licenses/pager/ no pacote.
 * nlohmann/json 3.11.3: MIT, fonte vendorizada em source/third_party/json.hpp.
 * DejaVu Sans: Bitstream Vera/DejaVu, ver DejaVu.txt.
 * Certificados Mozilla via certifi 2025.01.31: MPL-2.0,

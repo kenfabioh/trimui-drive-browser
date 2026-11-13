@@ -5,7 +5,7 @@
 #include <map>
 #include <tuple>
 
-enum Action { None, Up, Down, Left, Right, A, B, X, Start, Select };
+enum Action { None, Up, Down, Left, Right, A, B, X, Start, Select, PreviousPage, NextPage };
 inline bool isDirection(Action a) { return a>=Up && a<=Right; }
 
 // One timer for all navigation sources. Analog motion must not restart repeat;

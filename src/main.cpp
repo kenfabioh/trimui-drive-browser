@@ -5,6 +5,9 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <algorithm>
+#include <iterator>
+#include <cstdio>
 #include <cstring>
 #include <signal.h>
 #include <unistd.h>
@@ -34,12 +37,16 @@ class App {
     std::string selectedViewKey;
     size_t selectedPosition=0;
     Screen screen=Screen::Remotes;
-    struct Bookmark { std::string identity;size_t position; };
+    struct Bookmark { std::string identity;size_t position;size_t page=0; };
     std::map<std::string,Bookmark> bookmarks;
     bool letterMode=false;
     size_t letterIndex=0;
     const std::string alphabet="^#ABCDEFGHIJKLMNOPQRSTUVWXYZ*";
     bool searchView=false;
+    size_t pageSize=50,pageIndex=0,pendingPage=0,selectedPage=0;
+    size_t pageSizeChoice=50;
+    std::map<std::string,std::vector<RemotePage>> pageCache;
+    std::map<std::pair<int,int>,bool> triggerDown;
     std::vector<SearchResult> hits;
     std::string term, appliedTerm, pendingTerm;
     size_t keyRow=0, keyCol=0;
@@ -69,11 +76,12 @@ class App {
     }
     void rememberCursor() {
         auto key=viewKey();
-        if(!key.empty() && cursor<rows.size()) bookmarks[key]={rowIdentity(cursor),cursor};
+        if(!key.empty() && cursor<rows.size()) bookmarks[key]={rowIdentity(cursor),cursor,screen==Screen::Files?pageIndex:0};
     }
     void restoreCursor() {
         cursor=0;auto saved=bookmarks.find(viewKey());
         if(saved==bookmarks.end() || rows.empty()) return;
+        if(screen==Screen::Files && saved->second.page!=pageIndex) return;
         cursor=std::min(saved->second.position,rows.size()-1);
         for(size_t i=0;i<rows.size();++i) if(rowIdentity(i)==saved->second.identity) {cursor=i;break;}
     }
@@ -84,7 +92,7 @@ class App {
         // for this initial, allow jumping to a folder instead.
         for(bool directory:{false,true}) for(size_t i=0;i<rows.size();++i)
             if(rows[i].directory==directory && (letter=='^' || initialGroup(rows[i].name)==letter)) {
-                cursor=i;status=label+": "+rows[i].name+" | A/Select: navegar nos arquivos";return;
+                cursor=i;status=label+": "+rows[i].name+" | A/Select: arquivos (inicial nesta pagina)";return;
             }
         status="Nenhum item para "+label+". A/Select volta aos arquivos.";
     }
@@ -103,13 +111,58 @@ class App {
     }
     void request(const std::string& kind,const std::vector<std::string>& args,const std::string& purpose="") {
         input.clear();letterMode=false;
-        query.start(backend.command(kind,args));operation=purpose.empty()?kind:purpose;loading=true;
+        auto b=backend;if(kind=="page") b.executable="./bin/rclone-page";
+        query.start(b.command(kind,args));operation=purpose.empty()?kind:purpose;loading=true;
         queryStarted=std::chrono::steady_clock::now();queryTimedOut=false;status="Carregando... B cancela";
     }
     void remotes() {request("listremotes",{"--json","--source","file"});}
-    void list(const std::string& r,const std::vector<std::string>& p) {
+    std::string cacheKey(const std::string& r,const std::vector<std::string>& p) const {
+        return Json::array({r,p}).dump();
+    }
+    void trimPages() {
+        size_t count=0;
+        for(const auto& folder:pageCache)for(const auto& page:folder.second)if(page.resident)++count;
+        auto current=cacheKey(remote,path);
+        for(auto& folder:pageCache) for(size_t i=0;i<folder.second.size() && count>32;++i)
+            if(folder.second[i].resident && (folder.first!=current || i!=pageIndex)) {
+                folder.second[i].entries.clear();folder.second[i].entries.shrink_to_fit();folder.second[i].resident=false;--count;
+            }
+    }
+    void showPage(const std::string& r,const std::vector<std::string>& p,size_t index) {
+        auto& pages=pageCache.at(cacheKey(r,p));
+        rows=pages.at(index).entries;remote=r;path=p;pageIndex=index;
+        searchView=false;screen=Screen::Files;letterMode=false;restoreCursor();
+        trimPages();
+        status="Pagina "+std::to_string(index+1)+" | "+std::to_string(rows.size())+" itens | L: anterior | R: proxima | Start: atualizar";
+        if(rows.empty()) status+=" | Pagina vazia; use R se houver proxima.";
+    }
+    void list(const std::string& r,const std::vector<std::string>& p,bool refresh=false) {
+        pendingSource.clear();
         pendingRemote=r;pendingPath=p;
-        request("lsjson",{"--drive-skip-gdocs","--",r+":"+join(p)});
+        auto key=cacheKey(r,p);
+        if(refresh) pageCache.erase(key);
+        size_t index=0;auto saved=bookmarks.find(Json::array({"files",r,p}).dump());
+        if(!refresh && saved!=bookmarks.end()) index=saved->second.page;
+        auto found=pageCache.find(key);
+        if(found!=pageCache.end() && index<found->second.size()) {loadPage(r,p,index);return;}
+        pendingPage=0;
+        request("page",{r+":"+join(p),"",std::to_string(pageSize)});
+    }
+    void loadPage(const std::string& r,const std::vector<std::string>& p,size_t index) {
+        auto& pages=pageCache.at(cacheKey(r,p));
+        if(pages.at(index).resident) {showPage(r,p,index);return;}
+        pendingRemote=r;pendingPath=p;pendingPage=index;
+        request("page",{r+":"+join(p),index?pages.at(index-1).next:"",std::to_string(pageSize)});
+    }
+    void changePage(bool forward) {
+        if(screen!=Screen::Files) return;
+        auto& pages=pageCache.at(cacheKey(remote,path));
+        if(!forward) {if(pageIndex) {pendingSource.clear();loadPage(remote,path,pageIndex-1);}else status="Primeira pagina.";return;}
+        if(pages.at(pageIndex).next.empty()) {status="Ultima pagina.";return;}
+        pendingSource.clear();
+        if(pageIndex+1<pages.size()) {loadPage(remote,path,pageIndex+1);return;}
+        pendingPage=pageIndex+1;pendingRemote=remote;pendingPath=path;
+        request("page",{remote+":"+join(path),pages.at(pageIndex).next,std::to_string(pageSize)});
     }
     void showRoots() {
         letterMode=false;
@@ -167,6 +220,23 @@ class App {
     void menu() {
         screen=Screen::Menu;letterMode=false;cursor=0;rows.clear();
         for(const auto& n:{"Escolher destino","Atualizar pasta / tentar novamente","Trocar remote","Controles e informacoes","Pesquisar nesta pasta e subpastas","Sair"}) rows.push_back({n,"",0,false});
+        pageSizeChoice=pageSize;
+        rows.push_back({"Itens por pagina: "+std::to_string(pageSizeChoice)+" (esq/dir; A salva)","",0,false});
+    }
+    void savePageSize() {
+        auto updated=settings;updated["page_size"]=pageSizeChoice;
+        const char* temporary="config/settings.json.tmp";
+        {
+            std::ofstream out(temporary,std::ios::trunc);
+            out<<updated.dump(2)<<"\n";out.close();
+            if(!out) {std::remove(temporary);throw std::runtime_error("Nao foi possivel salvar a quantidade; confira o microSD");}
+        }
+        if(std::rename(temporary,"config/settings.json")!=0) {
+            std::remove(temporary);throw std::runtime_error("Nao foi possivel atualizar config/settings.json");
+        }
+        settings=std::move(updated);pageSize=pageSizeChoice;
+        pageCache.clear();bookmarks.clear();pendingSource.clear();
+        status="Salvo: "+std::to_string(pageSize)+" itens por pagina. B volta ao Drive na pagina 1.";
     }
     void handle(Action a) {
         if(a==None) return;
@@ -174,6 +244,7 @@ class App {
         if(!isDirection(a)) input.clear();
         if(download.active) {if(a==B) download.cancel();return;}
         if(loading) {if(a==B) {query.cancel();status="Cancelando consulta...";queryTimedOut=true;}return;}
+        if(a==PreviousPage || a==NextPage) {changePage(a==NextPage);return;}
         if(a==Select) {
             if(canJump()) {
                 letterMode=!letterMode;
@@ -194,6 +265,18 @@ class App {
             if(a==A) {jumpLetter();letterMode=false;}
             if(a==B) {letterMode=false;status="Arquivos: A abre/seleciona | X baixar | Select letras";}
             return;
+        }
+        if(screen==Screen::Menu && cursor==6 && (a==Left || a==Right)) {
+            const std::vector<size_t> choices={10,25,50,100,200,500,1000};
+            if(a==Right) {
+                auto it=std::upper_bound(choices.begin(),choices.end(),pageSizeChoice);
+                pageSizeChoice=it==choices.end()?choices.back():*it;
+            } else {
+                auto it=std::lower_bound(choices.begin(),choices.end(),pageSizeChoice);
+                pageSizeChoice=it==choices.begin()?choices.front():*std::prev(it);
+            }
+            rows[6].name="Itens por pagina: "+std::to_string(pageSizeChoice)+" (esq/dir; A salva)";
+            status="Esquerda/direita ajusta | A salva | B sai sem salvar";return;
         }
         if(a==Up && cursor) --cursor;
         if(a==Down && cursor+1<rows.size()) ++cursor;
@@ -218,11 +301,12 @@ class App {
         auto e=rows[cursor];
         if(screen==Screen::Menu && a==A) {
             if(cursor==0) showRoots();
-            if(cursor==1) {if(remote.empty())remotes();else list(remote,path);}
+            if(cursor==1) {if(remote.empty())remotes();else list(remote,path,true);}
             if(cursor==2) remotes();
             if(cursor==3) screen=Screen::Help;
             if(cursor==4) openSearch();
             if(cursor==5) quitting=1;
+            if(cursor==6) savePageSize();
         } else if(screen==Screen::Remotes && a==A) {
             if(e.mime!="drive") {status="Remote detectado, mas somente type=drive e suportado nesta versao.";return;}
             pendingSource.clear();list(e.name,{});
@@ -236,29 +320,30 @@ class App {
             else {
                 selected=e;pendingSource=sourceAt(cursor);
                 selectedViewKey=viewKey();selectedPosition=cursor;
+                selectedPage=screen==Screen::Files?pageIndex:0;
                 status="Selecionado: "+e.name+". X escolhe destino e inicia download.";
                 if(a==X) showRoots();
             }
         }
     }
     Action button(int b) {
-        const char* names[]={"up","down","left","right","a","b","x","start","select"};
-        int defaults[]={11,12,13,14,1,0,3,6,4};
-        Action actions[]={Up,Down,Left,Right,A,B,X,Start,Select};
+        const char* names[]={"up","down","left","right","a","b","x","start","select","l","r","l2","r2"};
+        int defaults[]={11,12,13,14,1,0,3,6,4,9,10,16,17};
+        Action actions[]={Up,Down,Left,Right,A,B,X,Start,Select,PreviousPage,NextPage,PreviousPage,NextPage};
         auto map=settings.value("buttons",Json::object());
-        for(int i=0;i<9;++i) if(b==map.value(names[i],defaults[i])) return actions[i];
+        for(int i=0;i<13;++i) if(b==map.value(names[i],defaults[i])) return actions[i];
         return None;
     }
     Action event(const SDL_Event& e,Uint64 now=SDL_GetTicks64()) {
         if(e.type==SDL_QUIT) {quitting=1;return None;}
         if(e.type==SDL_WINDOWEVENT) {
-            if(e.window.event==SDL_WINDOWEVENT_FOCUS_LOST || e.window.event==SDL_WINDOWEVENT_MINIMIZED) {focused=false;input.clear();}
+            if(e.window.event==SDL_WINDOWEVENT_FOCUS_LOST || e.window.event==SDL_WINDOWEVENT_MINIMIZED) {focused=false;input.clear();triggerDown.clear();}
             if(e.window.event==SDL_WINDOWEVENT_FOCUS_GAINED || e.window.event==SDL_WINDOWEVENT_RESTORED) focused=true;
         }
         if(e.type==SDL_CONTROLLERDEVICEADDED) {device(e.cdevice.which);return None;}
         if(e.type==SDL_JOYDEVICEADDED && !SDL_IsGameController(e.jdevice.which)) {device(e.jdevice.which);return None;}
         if(e.type==SDL_CONTROLLERDEVICEREMOVED || e.type==SDL_JOYDEVICEREMOVED) {
-            input.clear();
+            input.clear();triggerDown.clear();
             int id=e.type==SDL_CONTROLLERDEVICEREMOVED?e.cdevice.which:e.jdevice.which;
             for(auto it=controllers.begin();it!=controllers.end();) {
                 if(SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(*it))==id) {SDL_GameControllerClose(*it);it=controllers.erase(it);} else ++it;
@@ -279,7 +364,15 @@ class App {
             if(isDirection(a)) return input.set(Navigation::JoystickButton,e.jbutton.which,e.jbutton.button,down?a:None,now);
             return down?a:None;
         }
-        if(e.type==SDL_CONTROLLERAXISMOTION) return input.axis(Navigation::ControllerStick,e.caxis.which,e.caxis.axis,e.caxis.value,now);
+        if(e.type==SDL_CONTROLLERAXISMOTION) {
+            if(e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERLEFT || e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
+                auto& pressed=triggerDown[{e.caxis.which,e.caxis.axis}];
+                if(e.caxis.value<8000)pressed=false;
+                if(e.caxis.value>16000 && !pressed) {pressed=true;return e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERLEFT?PreviousPage:NextPage;}
+                return None;
+            }
+            return input.axis(Navigation::ControllerStick,e.caxis.which,e.caxis.axis,e.caxis.value,now);
+        }
         if(e.type==SDL_JOYAXISMOTION && !SDL_GameControllerFromInstanceID(e.jaxis.which))
             return input.axis(Navigation::JoystickStick,e.jaxis.which,e.jaxis.axis,e.jaxis.value,now);
         if(e.type==SDL_JOYHATMOTION && !SDL_GameControllerFromInstanceID(e.jhat.which)) {
@@ -312,6 +405,7 @@ class App {
             case SDLK_UP:return Up;case SDLK_DOWN:return Down;case SDLK_LEFT:return Left;case SDLK_RIGHT:return Right;
             case SDLK_RETURN:return A;case SDLK_ESCAPE:return B;case SDLK_x:return X;case SDLK_TAB:return Start;
             case SDLK_F1:return Select;
+            case SDLK_PAGEUP:return PreviousPage;case SDLK_PAGEDOWN:return NextPage;
         }
         return None;
     }
@@ -339,6 +433,18 @@ class App {
                                 result.push_back({n,j.at("type").get<std::string>(),0,true});
                             }
                             remote.clear();path.clear();searchView=false;screen=Screen::Remotes;
+                        } else if(operation=="page") {
+                            auto page=parseRemotePage(query.output,pageSize);
+                            auto& pages=pageCache[cacheKey(pendingRemote,pendingPath)];
+                            if(pendingPage>pages.size())throw std::runtime_error("Pagina fora de sequencia");
+                            if(pendingPage && !page.next.empty() && page.next==pages[pendingPage-1].next)throw std::runtime_error("Token de pagina repetido");
+                            if(pendingPage<pages.size()) {
+                                if(pages[pendingPage].next!=page.next)pages.resize(pendingPage+1);
+                                pages[pendingPage]=std::move(page);
+                            }
+                            else pages.push_back(std::move(page));
+                            pendingSource.clear();
+                            showPage(pendingRemote,pendingPath,pendingPage);query.output.clear();return;
                         } else if(operation=="search") {
                             auto results=searchEntries(query.output,pendingTerm);
                             hits=std::move(results);appliedTerm=pendingTerm;searchView=true;pendingSource.clear();showRemote();
@@ -358,7 +464,7 @@ class App {
         if(wasActive) status=download.message;
         if(wasActive && !download.active && download.success) {
             auto message=download.message;
-            if(!selectedViewKey.empty() && !pendingSource.empty()) bookmarks[selectedViewKey]={pendingSource,selectedPosition};
+            if(!selectedViewKey.empty() && !pendingSource.empty()) bookmarks[selectedViewKey]={pendingSource,selectedPosition,selectedPage};
             pendingSource.clear();
             try {local(selected.name);status=message;}
             catch(const std::exception&) {status=message+". Nao foi possivel atualizar a pasta local.";}
@@ -368,7 +474,7 @@ class App {
         SDL_SetRenderDrawColor(renderer,15,21,34,255);SDL_RenderClear(renderer);
         SDL_Color white={235,240,250,255},muted={155,174,196,255},accent={89,225,184,255};
         text("DRIVE BROWSER",36,24,accent,900,true);
-        text("v1.0.2  |  somente leitura",780,35,muted,460);
+        text("v1.1.0  |  somente leitura",780,35,muted,460);
         std::string location="Remotes do rclone";
         if(screen==Screen::Files) location=remote+":"+join(path);
         if(screen==Screen::Roots) location="Escolher raiz permitida no microSD";
@@ -376,9 +482,10 @@ class App {
         if(screen==Screen::Menu) location="Menu";
         if(screen==Screen::Help) location="Controles e informacoes";
         if(screen==Screen::Keyboard || screen==Screen::SearchResults) location="Pesquisa em: "+remote+":"+join(path);
-        SDL_Rect headingClip={36,80,1200,45};SDL_RenderSetClipRect(renderer,&headingClip);
+        SDL_Rect headingClip={36,80,screen==Screen::Files?890:1200,45};SDL_RenderSetClipRect(renderer,&headingClip);
         text(location,36,80,white,1200);
         SDL_RenderSetClipRect(renderer,nullptr);
+        if(screen==Screen::Files) text("Pag. "+std::to_string(pageIndex+1)+" | "+std::to_string(pageSize)+" | L/R",950,80,accent,290);
         if(screen==Screen::Keyboard) {
             SDL_Rect inputClip={36,128,1200,45};SDL_RenderSetClipRect(renderer,&inputClip);
             text(term+"|",36,128,accent,8000,true);SDL_RenderSetClipRect(renderer,nullptr);
@@ -390,7 +497,7 @@ class App {
                 text(keys[r][c],x+12,y+8,white,width-20);
             }
         } else if(screen==Screen::Help) {
-            text("Direcional/analogico esquerdo: navegar; segure para repetir\nA: abrir pasta ou selecionar arquivo\nB: voltar / cancelar consulta ou download\nX: escolher destino; X no destino confirma a pasta\nStart: menu, pesquisa, sair | Select: faixa de letras\nInicio: primeiro arquivo | 0-9: numeros | A-Z: inicial\nPesquisa QWERTY: direcional + A digita; X busca; B volta.\nA pasta local mostra arquivos, tamanhos e o download concluido.\nWi-Fi e rclone.conf valido sao necessarios. Sem login na tela.\nMapeamento e buffer em config/settings.json. Buffer atual: "+std::to_string(backend.downloadBufferMiB)+" MiB\nSDL: "+std::string(SDL_GetCurrentVideoDriver()?SDL_GetCurrentVideoDriver():"?")+" | controles: "+std::to_string(SDL_NumJoysticks())+"\nB volta ao menu.",36,140,white,1200);
+            text("Direcional/analogico esquerdo: navegar; segure para repetir\nA: abrir pasta ou selecionar arquivo\nB: voltar / cancelar consulta ou download\nX: escolher destino; X no destino confirma a pasta\nL/R: paginas | Start: menu, pesquisa | Select: letras\nInicio: primeiro arquivo | 0-9: numeros | A-Z: inicial\nPesquisa QWERTY: direcional + A digita; X busca; B volta.\nA pasta local mostra arquivos, tamanhos e o download concluido.\nWi-Fi e rclone.conf valido sao necessarios. Sem login na tela.\nMapeamento e buffer em config/settings.json. Pagina: "+std::to_string(pageSize)+" itens | Buffer: "+std::to_string(backend.downloadBufferMiB)+" MiB\nSDL: "+std::string(SDL_GetCurrentVideoDriver()?SDL_GetCurrentVideoDriver():"?")+" | controles: "+std::to_string(SDL_NumJoysticks())+"\nB volta ao menu.",36,140,white,1200);
         } else {
             size_t first=cursor/9*9;
             for(size_t i=first;i<rows.size() && i<first+9;++i) {
@@ -441,6 +548,7 @@ class App {
 public:
     App() {
         settings=readJson(access("config/settings.json",R_OK)==0?"config/settings.json":"config/settings.example.json");
+        pageSize=configuredPageSize(settings);
         sd=settings.value("sd_root",std::string("/mnt/SDCARD"));
         roots=settings.at("allowed_roots").get<std::vector<std::string>>();
         if(roots.empty()) throw std::runtime_error("Nenhuma raiz de destino permitida");

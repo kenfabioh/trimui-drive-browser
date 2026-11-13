@@ -3,6 +3,15 @@
 Pesquisa realizada em 13/11/2026. Alvo: **Smart Pro original A133 Plus**,
 CrossMix OS **1.3.0**, Linux AArch64; nao Smart Pro S, Brick ou outros modelos.
 
+## Evolucao 1.1.0
+
+A navegacao usa paginas reais e tokens do Drive por uma extensao minima ao
+backend rclone; `lsjson` permanece na pesquisa recursiva. O helper, cache,
+preferencias e os limites estao descritos em [PAGINATION.md](PAGINATION.md).
+L/R e L2/R2 trocam paginas sem repeticao ao segurar; as iniciais operam sobre
+a pagina atual. Bookmarks incluem o indice de pagina. A quantidade pode ser
+salva pelo menu Start ou configurada no arquivo pessoal.
+
 ## Evolucao 0.4.0
 
 A selecao passa a ter bookmarks em memoria por tipo de tela, remote/pasta ou
@@ -103,8 +112,8 @@ zlib, bzip2 e libgcc_s. Nao substitui a glibc, kernel ou drivers GPU do firmware
 * rclone em subprocessos com `fork/execv`, stdin fechado, argumentos separados,
   saidas nao bloqueantes, memoria limitada e cancelamento do grupo de processos.
   A interface permanece responsiva durante consulta/transferencia.
-* Descoberta por `listremotes --json --source file`, navegacao por `lsjson`
-  (sem recursao), e download por `cat` com stdout ligado a um descritor local.
+* Descoberta por `listremotes --json --source file`, navegacao por `backend drivebrowser-page`
+  (uma pagina), pesquisa por `lsjson --recursive`, e download por `cat` com stdout ligado a um descritor local.
   JSON nao e analisado com expressoes regulares nem nomes com shell.
 * Apenas comandos de leitura remota sao aceitos pelo backend. O app nao usa
   `copy`, `sync`, `move`, `delete`, `mkdir` ou servidor RC de controle remoto.

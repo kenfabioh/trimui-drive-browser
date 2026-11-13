@@ -23,7 +23,7 @@ with zipfile.ZipFile(package) as z:
     manifest = json.loads(z.read(prefix + "SHA256SUMS.json"))
     for name, digest in manifest.items():
         assert hashlib.sha256(z.read(prefix + name)).hexdigest() == digest
-    for name in ("bin/drive-browser", "bin/rclone"):
+    for name in ("bin/drive-browser", "bin/rclone", "bin/rclone-page"):
         data = z.read(prefix + name)
         assert data[:4] == b"\x7fELF" and data[4:6] == b"\x02\x01"
         assert struct.unpack_from("<H", data, 18)[0] == 183, "not AArch64"

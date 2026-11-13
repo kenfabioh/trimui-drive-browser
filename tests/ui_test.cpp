@@ -1,5 +1,6 @@
 // Runs the production state machine and SDL controller mapping against real
-// rclone file operations. Only remote discovery is stubbed by the fixture.
+// rclone file operations. Discovery and paginated transport use local fixtures;
+// the production Go page helper has separate HTTP-level tests.
 #define DRIVEBROWSER_TESTING
 #define main drivebrowser_application_main
 #include "../src/main.cpp"
@@ -107,6 +108,75 @@ struct UiTest {
         press(app,SDL_CONTROLLER_BUTTON_A);wait(app);
         check(app.rows[app.cursor].name=="zz-alfabeto","parent folder restores child folder focus");
     }
+    static size_t pageRequests() {
+        std::ifstream f("data/page-requests.jsonl");std::string line;size_t n=0;while(std::getline(f,line))++n;return n;
+    }
+    static void pagingTests(App& app) {
+        check(app.pageSize==50,"default page size loaded");
+        focusName(app,"zz-pages");press(app,SDL_CONTROLLER_BUTTON_B);wait(app);
+        check(app.pageIndex==0 && app.rows.size()==50 && app.rows.front().name=="File000.bin","first 50 items only");
+        auto calls=pageRequests();press(app,SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+        check(app.pageIndex==0 && pageRequests()==calls,"L on first page does not query");
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);
+        check(app.pageIndex==1 && app.rows.size()==50 && app.rows.front().name=="File050.bin","R requests next 50 items");
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);
+        check(app.pageIndex==2 && app.rows.size()==23 && app.rows.back().name=="File122.bin","last partial page");
+        calls=pageRequests();press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+        check(app.pageIndex==2 && pageRequests()==calls,"R on last page does not query");
+        press(app,SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+        check(!app.loading && app.pageIndex==1 && pageRequests()==calls,"previous page served from cache");
+        focusName(app,"File059.bin");press(app,SDL_CONTROLLER_BUTTON_B);press(app,SDL_CONTROLLER_BUTTON_Y);
+        press(app,SDL_CONTROLLER_BUTTON_B);press(app,SDL_CONTROLLER_BUTTON_B);press(app,SDL_CONTROLLER_BUTTON_Y);wait(app);
+        check(app.download.success,"download file from second page");
+        press(app,SDL_CONTROLLER_BUTTON_A);press(app,SDL_CONTROLLER_BUTTON_A);press(app,SDL_CONTROLLER_BUTTON_A);wait(app);
+        check(app.pageIndex==1 && app.rows[app.cursor].name=="File059.bin","B restores downloaded file and remote page");
+        app.pageSize=17;app.pageCache.clear();app.list(app.remote,app.path,true);wait(app);
+        check(app.pageIndex==0 && app.rows.size()==17,"custom quantity respected");
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);
+        check(app.pageIndex==1 && app.rows.front().name=="File017.bin","custom quantity used in next token");
+        {std::ofstream f("data/fail-page-next");f<<"fail";}
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);
+        check(app.pageIndex==1 && app.rows.front().name=="File017.bin","failed page keeps existing list");
+        if(unlink("data/fail-page-next"))throw std::runtime_error("fixture cleanup");
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);
+        check(app.pageIndex==2 && app.rows.front().name=="File034.bin","retry failed page succeeds");
+        {std::ofstream f("data/slow-page");f<<"slow";}
+        press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);check(app.loading,"next page can be cancelled");
+        press(app,SDL_CONTROLLER_BUTTON_A);wait(app);
+        check(app.pageIndex==2 && app.rows.front().name=="File034.bin","cancelled page does not replace content");
+        if(unlink("data/slow-page"))throw std::runtime_error("fixture cleanup");
+        SDL_Event trigger={};trigger.type=SDL_CONTROLLERAXISMOTION;trigger.caxis.axis=SDL_CONTROLLER_AXIS_TRIGGERLEFT;trigger.caxis.value=24000;
+        app.handle(app.event(trigger));wait(app);check(app.pageIndex==1,"L2 trigger axis goes back");
+        trigger.caxis.value=26000;app.handle(app.event(trigger));app.navigate(SDL_GetTicks64()+1000);
+        check(app.pageIndex==1,"held trigger does not repeatedly change pages");
+        trigger.caxis.value=0;app.handle(app.event(trigger));trigger.caxis.value=24000;app.handle(app.event(trigger));wait(app);
+        check(app.pageIndex==0,"released trigger can be pressed again");
+        // Exercise bounded cache and refetch of an evicted page with its token.
+        app.pageSize=3;app.pageCache.clear();app.list(app.remote,app.path,true);wait(app);
+        for(int i=0;i<34;++i){press(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);wait(app);}
+        size_t resident=0;for(const auto& folder:app.pageCache)for(const auto& p:folder.second)if(p.resident)++resident;
+        check(resident<=32 && app.pageIndex==34,"resident page cache bounded to 32 pages");
+        for(int i=0;i<34;++i){press(app,SDL_CONTROLLER_BUTTON_LEFTSHOULDER);wait(app);}
+        check(app.pageIndex==0 && app.rows.size()==3 && app.rows.front().name=="File000.bin","evicted pages can be loaded again correctly");
+        app.menu();app.cursor=6;app.handle(Right);
+        check(app.pageSizeChoice==10 && app.pageSize==3,"menu previews quantity without applying it");
+        app.handle(B);wait(app);
+        check(app.pageSize==3 && app.rows.size()==3,"B discards unsaved quantity");
+        auto original=app.settings;
+        app.menu();app.cursor=6;app.handle(Right);app.handle(Right);app.handle(A);
+        auto saved=readJson("config/settings.json");
+        check(app.pageSize==25 && configuredPageSize(saved)==25,"menu quantity persisted to settings");
+        original["page_size"]=25;
+        check(saved==original && app.pageCache.empty(),"quantity preserves other settings and invalidates old page tokens");
+        app.handle(B);wait(app);
+        check(app.pageIndex==0 && app.rows.size()==25,"saved menu quantity applied without restart");
+        app.draw();capture(app,"data/ui-pages.bmp");
+        app.menu();app.cursor=6;app.pageSizeChoice=1000;app.handle(Right);
+        check(app.pageSizeChoice==1000,"menu quantity upper bound");
+        app.pageSizeChoice=10;app.handle(Left);
+        check(app.pageSizeChoice==10,"menu quantity lower bound");
+        app.draw();capture(app,"data/ui-page-settings.bmp");
+    }
     static void inputTests(App& app) {
         app.menu();
         SDL_Event e={};e.type=SDL_CONTROLLERBUTTONDOWN;e.cbutton.which=55;e.cbutton.button=SDL_CONTROLLER_BUTTON_DPAD_DOWN;
@@ -127,7 +197,8 @@ struct UiTest {
         check(app.cursor==2,"moving held analog keeps original repeat deadline");
         e.caxis.value=0;app.handle(app.event(e,3400));app.navigate(4000);check(app.cursor==2,"centering analog stops");
         e.caxis.axis=SDL_CONTROLLER_AXIS_LEFTX;e.caxis.value=24000;app.handle(app.event(e,4100));
-        check(app.cursor==5,"analog right uses page navigation");
+        check(app.cursor==app.rows.size()-1,"analog right uses ten-item navigation up to list end");
+        app.cursor=5; // Regular menu entry; quantity row uses horizontal adjustment.
         e.caxis.value=-24000;app.handle(app.event(e,4200));check(app.cursor==0,"analog left uses page navigation");
         e.caxis.value=0;app.handle(app.event(e,4201));
         e.caxis.axis=SDL_CONTROLLER_AXIS_RIGHTY;e.caxis.value=28000;app.handle(app.event(e,4300));app.navigate(5000);
@@ -239,6 +310,7 @@ struct UiTest {
         press(app,SDL_CONTROLLER_BUTTON_B);
         check(app.pendingSource=="fixture:jogos/Áção final.zip","subfolder search builds exact source without repeated prefix");
         browseTests(app);
+        pagingTests(app);
         std::cout<<"PASS UI "<<checks<<" checks\n";
     }
 };

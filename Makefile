@@ -11,10 +11,12 @@ RCLONE_NATIVE = $(SDK_ROOT)/rclone-v1.69.1-linux-amd64/rclone
 RCLONE_ARM = $(SDK_ROOT)/rclone-v1.69.1-linux-arm64/rclone
 QEMU = $(DEP_CACHE)/qemu-aarch64-static
 
-.PHONY: all deps arm64 native test test-fallback test-arm64 test-input test-input-arm64 test-ui test-ui-arm64 smoke-native smoke-arm64 package clean
+.PHONY: all deps pager arm64 native test test-fallback test-arm64 test-input test-input-arm64 test-ui test-ui-arm64 smoke-native smoke-arm64 package clean
 all: arm64
 deps:
 	python3 scripts/fetch_deps.py --sdk "$(SDK_ROOT)" --cache "$(DEP_CACHE)"
+pager:
+	python3 scripts/build_pager.py --sdk "$(SDK_ROOT)" --cache "$(DEP_CACHE)" --qemu "$(QEMU)"
 build:
 	mkdir -p build
 build/drive-browser-arm64: src/main.cpp src/core.cpp src/core.hpp src/navigation.hpp third_party/json.hpp | build
@@ -55,7 +57,7 @@ smoke-native: native
 	python3 scripts/smoke.py --sdk "$(SDK_ROOT)" --arch native
 smoke-arm64: arm64
 	python3 scripts/smoke.py --sdk "$(SDK_ROOT)" --arch arm64 --qemu "$(QEMU)" --driver offscreen
-package: arm64
+package: arm64 pager
 	python3 scripts/package.py --sdk "$(SDK_ROOT)"
 clean:
 	rm -rf build

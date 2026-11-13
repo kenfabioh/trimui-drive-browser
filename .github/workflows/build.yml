@@ -17,8 +17,11 @@ jobs:
           sudo apt-get install -y build-essential curl python3 binutils libsdl2-2.0-0 libfreetype6
       - uses: actions/cache@v4
         with:
-          path: .deps/cache
-          key: trimui-dependencies-${{ runner.os }}-${{ hashFiles('scripts/fetch_deps.py') }}
+          path: |
+            .deps/cache
+            .deps/sdk/go-mod-cache
+            .deps/sdk/go-build-cache
+          key: trimui-dependencies-${{ runner.os }}-${{ hashFiles('scripts/fetch_deps.py', 'scripts/build_pager.py') }}
       - name: Prepare pinned dependencies
         run: make deps
       - name: Build and test

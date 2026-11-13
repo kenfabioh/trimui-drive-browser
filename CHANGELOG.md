@@ -1,5 +1,21 @@
 # Histórico / Changelog
 
+## 1.1.0 — 2026-11-13
+
+- Listagem do Drive em páginas de até 50 itens por padrão, avançando com R e
+  voltando com L; também aceita L2/R2. Sem varrer a pasta inteira ao abri-la.
+- Quantidade ajustável no menu Start, com gravação das preferências; `page_size`
+  aceita qualquer inteiro de 1 a 1000 no arquivo de configuração.
+- Cache de até 32 páginas de conteúdo, indicador e retorno ao arquivo baixado.
+- Helper ARM64 de leitura compilado do rclone 1.69.1 com extensão paginada;
+  reaproveita autenticação, resolução de pastas e suporte a Drives compartilhados.
+- Testes de paginação, limites, cancelamento, cache, seleção e preferências.
+- Faixa de iniciais passa a considerar a página atual; pesquisa continua recursiva.
+
+Drive pages with configurable size and controller navigation. The maintainer
+reported successful use of this version on the target console; automated tests
+use local fixtures and emulated ARM64. No independent hardware benchmark was run.
+
 ## 1.0.2 — 2026-11-13
 
 - Estende a conferência de retornos às chamadas de preparação/limpeza das

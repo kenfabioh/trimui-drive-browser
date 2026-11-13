@@ -11,6 +11,8 @@ Smart Pro running CrossMix OS 1.3.0**. It uses rclone, an existing authenticated
 configuration and a native SDL2 interface. No firmware changes or system package
 installation are needed. The maintainer reports successful use on the target
 console; automated tests also run on Linux and emulated ARM64 with local files.
+The maintainer also reported successful pagination in 1.1.0 on their console.
+The agent did not directly test hardware or benchmark network performance.
 Other TrimUI models, OS versions and firmware revisions are not confirmed.
 
 ## Requirements
@@ -26,7 +28,7 @@ valid existing credentials do not need to be authenticated again.
 
 ## Install or update
 
-1. Download **`DriveBrowser-1.0.2-arm64.zip`** from Releases. GitHub's automatic
+1. Download **`DriveBrowser-1.1.0-arm64.zip`** from Releases. GitHub's automatic
    **Source code** archive is not the ready-to-run application.
 2. Extract the ZIP to the **root of your microSD**. You should have
    `Apps/DriveBrowser/launch.sh`, not `Apps/Apps/DriveBrowser/launch.sh`.
@@ -62,6 +64,7 @@ original Drive file, preserving its position.
 | X | Choose destination / start download in displayed directory |
 | Start | Menu, search, refresh, switch remote or exit |
 | Select | Toggle focus between the file list and initial-letter strip |
+| L / R (also L2 / R2) | Previous / next Drive page |
 
 The app interface is currently in **Portuguese**. In the Start menu,
 **Pesquisar nesta pasta e subpastas** searches filenames within the current
@@ -69,9 +72,18 @@ folder tree. Use the QWERTY keyboard, A to type and X/Buscar to search. Latin
 case/accents are folded (`acao` matches `Áção.zip`). Select a result and download
 normally. Search does not inspect file contents and can be cancelled with B.
 
+Drive browsing loads up to **50 entries per page**, including folders. Use L/R
+to switch pages. **Start → Itens por pagina**, left/right, then **A** saves the
+quantity (10, 25, 50, 100, 200, 500 or 1,000). B discards unsaved changes. Saving
+restarts browsing at page one when returning, without restarting the app. You
+can also set any integer **1–1,000** using `page_size` in `config/settings.json`
+while the app is closed. Existing settings default to 50. Refresh from Start
+restarts a folder when its contents change.
+
 The letter strip contains **Inicio** (first file), **0-9**, **A-Z** and `*`
 (other initials). Move with the D-pad/stick; A confirms, Select returns to the
-list and B leaves the strip. X cannot start a download while choosing a letter.
+list and B leaves the strip. In Drive folders, initials apply to the current
+page only. X cannot start a download while choosing a letter.
 
 ## Destination settings
 
@@ -83,6 +95,7 @@ To allow other roots, copy `config/settings.example.json` to
 {
   "sd_root": "/mnt/SDCARD",
   "allowed_roots": ["/mnt/SDCARD/Downloads/DriveBrowser", "/mnt/SDCARD/Roms"],
+  "page_size": 50,
   "download_buffer_mib": 16,
   "buttons": {"up":11,"down":12,"left":13,"right":14,"a":1,"b":0,"x":3,"start":6,"select":4}
 }
@@ -119,7 +132,7 @@ If reporting a bug, include model, OS/firmware, app version, steps and a sanitiz
 error screenshot. Do not share tokens, client secrets, private filenames or config.
 
 [Build/contribution guide](CONTRIBUTING.md) · [Validation](docs/VALIDATION.md) ·
-[Release notes](docs/RELEASE-v1.0.2.md) · [Licenses](app/licenses/NOTICE.md)
+[Release notes](docs/RELEASE-v1.1.0.md) · [Licenses](app/licenses/NOTICE.md)
 
 GPL-3.0; bundled components retain their respective licenses. The approved icon
 is a 300 × 300 RGBA PNG. Development/advanced documentation is primarily Portuguese.

@@ -13,7 +13,8 @@ que deseja e o baixa para o microSD usando apenas os botões do console.
 ## O que ele faz
 
 - Carrega seu `rclone.conf` existente e detecta os remotes configurados.
-- Navega por pastas e mostra nomes, tipos e tamanhos de arquivos.
+- Navega por páginas de 50 itens (configurável), com L/R para trocar de página.
+- Mostra nomes, tipos e tamanhos de arquivos.
 - Pesquisa por nome nas pastas e subpastas, com teclado QWERTY na tela.
 - Salta pela inicial usando Select: **Início**, **0–9**, **A–Z** e outros caracteres.
 - Baixa um arquivo por vez para uma pasta permitida do microSD.
@@ -49,14 +50,15 @@ cartão e da configuração pode precisar de um computador; **durante o uso norm
 não é necessário computador ou celular**. A interface não realiza login OAuth.
 
 O mantenedor relatou funcionamento no modelo alvo. Os testes automatizados usam
-Linux e emulação ARM64 com arquivos locais. A versão 1.0.2 consolida os recursos
-já testados em uso e o novo ícone 300 × 300; não estabelece compatibilidade com
+Linux e emulação ARM64 com arquivos locais. O mantenedor também confirmou o
+funcionamento da paginação da versão 1.1.0 no seu aparelho. Não houve teste
+direto do hardware pelo agente nem benchmark da rede. Isso não estabelece compatibilidade com
 Smart Pro S, Brick, outros sistemas ou todas as revisões de firmware.
 [Evidências e limites da validação](docs/VALIDATION.md).
 
 ## Instalação
 
-1. Baixe **`DriveBrowser-1.0.2-arm64.zip`** na página de Releases. O arquivo
+1. Baixe **`DriveBrowser-1.1.0-arm64.zip`** na página de Releases. O arquivo
    **Source code** do GitHub é o código-fonte, não o aplicativo pronto.
 2. Extraia o ZIP na **raiz do microSD**. A estrutura deve ficar assim:
 
@@ -115,15 +117,26 @@ padrão ficam fora dela. Guarde sua configuração antes de apagar a pasta do ap
 | X | Escolher destino; no destino, iniciar o download |
 | Start | Menu: atualizar, pesquisar, escolher destino, trocar remote ou sair |
 | Select | Alternar entre arquivos e faixa de letras |
+| L / R (também L2 / R2) | Página anterior / próxima no Drive |
 
 **Pesquisar:** Start → **Pesquisar nesta pasta e subpastas**. Digite no teclado
 QWERTY com direcional/analógico + A e use X ou Buscar. `acao` encontra `Áção.zip`.
 A busca considera nomes, não o conteúdo dos arquivos. Nos resultados, selecione
 com A e baixe com X.
 
+**Paginação:** cada consulta carrega até **50 itens**, incluindo pastas. L volta
+e R avança; páginas já abertas são reutilizadas. Para ajustar no console, use
+**Start → Itens por página**, esquerda/direita e **A para salvar**. **B** descarta
+um ajuste não salvo. As opções são 10, 25, 50, 100, 200, 500 e 1.000. A alteração
+salva volta à primeira página ao retornar à lista e permanece após fechar o app.
+Também é possível definir qualquer inteiro de **1 a 1.000** em `page_size` no
+arquivo `config/settings.json`, com o app fechado. Configurações antigas usam 50.
+Start → Atualizar reinicia a pasta se seu conteúdo mudou.
+
 **Saltar pela inicial:** Select ativa a faixa. Escolha Início, 0–9, uma letra ou
 `*` usando o direcional/analógico. A confirma; Select volta à lista; B sai da faixa
-sem mudar de pasta. Enquanto o foco está nas letras, X não baixa arquivos.
+sem mudar de pasta. No Drive, o salto considera apenas a **página atual**.
+Enquanto o foco está nas letras, X não baixa arquivos.
 
 ## Configuração, segurança e limites
 
@@ -152,7 +165,7 @@ sem mudar de pasta. Enquanto o foco está nas letras, X não baixa arquivos.
 - [Configurar o Drive, solucionar erros e pedir ajuda](docs/AJUDA.md)
 - [Guia detalhado: destinos, controles, desempenho e recuperação](docs/GUIA.md)
 - [Compilar, testar e contribuir](CONTRIBUTING.md)
-- [Notas da versão 1.0.2](docs/RELEASE-v1.0.2.md) · [Histórico](CHANGELOG.md)
+- [Notas da versão 1.1.0](docs/RELEASE-v1.1.0.md) · [Histórico](CHANGELOG.md)
 - [Arquitetura e pesquisa de compatibilidade](docs/ARCHITECTURE.md)
 
 Licença **GPL-3.0**. Bibliotecas, fontes, rclone e certificados têm suas próprias

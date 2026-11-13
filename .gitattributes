@@ -1,0 +1,6 @@
+*.png binary
+*.ttf binary
+*.sh text eol=lf
+*.py text eol=lf
+# Preserve upstream license notices byte-for-byte, including original CRLF/spacing.
+app/licenses/*.txt -text -whitespace

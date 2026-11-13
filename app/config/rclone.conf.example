@@ -1,0 +1,8 @@
+# EXEMPLO ESTRUTURAL: NAO e uma configuracao autenticada.
+# Copie seu arquivo rclone.conf existente para config/rclone.conf.
+# O aplicativo nao solicita login nem senha de configuracao criptografada.
+[meu-drive]
+type = drive
+scope = drive.readonly
+# client_id = SEU_CLIENT_ID_SE_NECESSARIO
+# token = COLE_SOMENTE_NO_ARQUIVO_LOCAL_SEU_TOKEN_EXISTENTE

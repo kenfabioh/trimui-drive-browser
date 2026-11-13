@@ -1,0 +1,31 @@
+name: Problema / Bug report
+description: Relate um erro sem expor configuração ou credenciais / Report a bug safely
+body:
+  - type: markdown
+    attributes:
+      value: "Não envie rclone.conf, tokens, client secrets ou dados privados. Do not attach config files or credentials."
+  - type: input
+    id: device
+    attributes:
+      label: Console e sistema / Device and OS
+      placeholder: TrimUI Smart Pro original, CrossMix 1.3.0, firmware...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão / App version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos e comportamento / Steps and behavior
+      description: Resultado esperado, resultado obtido e mensagem de erro (sem dados privados).
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Informações adicionais / Additional information
+      description: Para desempenho, informe cartão, formato, Wi-Fi e velocidade. Oculte nomes privados nas capturas.

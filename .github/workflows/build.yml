@@ -1,0 +1,42 @@
+name: Build and verify
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desktop build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl python3 binutils libsdl2-2.0-0 libfreetype6
+      - uses: actions/cache@v4
+        with:
+          path: .deps/cache
+          key: trimui-dependencies-${{ runner.os }}-${{ hashFiles('scripts/fetch_deps.py') }}
+      - name: Prepare pinned dependencies
+        run: make deps
+      - name: Build and test
+        run: |
+          make arm64 native
+          make test test-fallback test-arm64 test-input test-input-arm64
+          make test-ui test-ui-arm64 smoke-native smoke-arm64
+      - name: Verify distribution
+        run: |
+          python3 scripts/make_icon.py
+          sh -n app/launch.sh
+          make package
+          python3 scripts/verify_package.py
+          python3 scripts/check_docs.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DriveBrowser-arm64
+          path: |
+            dist/DriveBrowser-*-arm64.zip
+            dist/DriveBrowser-*-arm64.zip.sha256
+          if-no-files-found: error

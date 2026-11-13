@@ -1,0 +1,19 @@
+/build/
+/dist/*.zip
+/dist/*.sha256
+/app/bin/
+/app/lib/
+/app/config/rclone.conf
+/app/config/settings.json
+/app/data/
+__pycache__/
+/.deps/
+
+# Private configuration, backups and local release planning
+**/rclone.conf
+**/rclone.conf.*
+!**/rclone.conf.example
+.env
+.env.*
+!.env.example
+/dist/release-plan.json

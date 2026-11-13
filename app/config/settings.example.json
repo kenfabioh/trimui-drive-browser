@@ -1,0 +1,6 @@
+{
+  "sd_root": "/mnt/SDCARD",
+  "allowed_roots": ["/mnt/SDCARD/Downloads/DriveBrowser"],
+  "download_buffer_mib": 16,
+  "buttons": {"up": 11, "down": 12, "left": 13, "right": 14, "a": 1, "b": 0, "x": 3, "start": 6, "select": 4}
+}

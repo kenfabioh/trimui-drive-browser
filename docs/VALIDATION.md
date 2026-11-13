@@ -4,9 +4,11 @@
 
 O mantenedor relatou funcionamento do conjunto de recursos ate a v0.4 no modelo
 alvo. A versao 1.0.0 consolida esse comportamento, a identificacao da versao,
-documentacao e icone final. O canvas do icone foi ajustado para **300x300** com
-a arte anterior de 256x256 centralizada e margens transparentes, conforme pedido;
-o alinhamento do nome no launcher ainda precisa de verificacao visual no aparelho.
+documentacao e icone final. A foto posterior mostrou sobreposicao do icone maior
+ao titulo. A correcao usa canvas **300x300**, arte dentro de **170x170** em
+**(65,25)** e rodape transparente, seguindo as medidas dos icones oficiais User
+Guide e PortMaster da tag CrossMix v1.3.0. A nova disposicao foi verificada no
+PNG e na auditoria do ZIP; ainda precisa ser conferida no launcher fisico.
 Nao houve teste direto do hardware pelo agente nem homologacao de outros modelos.
 
 Na bateria final local, passaram:

@@ -7,6 +7,7 @@ import struct
 import subprocess
 import tempfile
 import zipfile
+from make_icon import check_icon
 
 version=Path("VERSION").read_text().strip()
 package = Path(f"dist/DriveBrowser-{version}-arm64.zip")
@@ -38,6 +39,7 @@ with zipfile.ZipFile(package) as z:
     image = z.read(prefix + "icon.png")
     assert image[:8] == b"\x89PNG\r\n\x1a\n"
     assert struct.unpack_from('!IIBB',image,16)==(300,300,8,6), 'Icon must be RGBA 300x300'
+    check_icon(image)
     for doc in ('README.md','README.en.md','CONTRIBUTING.md','CHANGELOG.md','LICENSE','docs/AJUDA.md'):
         assert prefix+doc in z.namelist()
     actual={n[len(prefix):] for n in z.namelist() if n!=prefix+'SHA256SUMS.json'}

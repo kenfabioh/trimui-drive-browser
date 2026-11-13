@@ -8,13 +8,20 @@ redor do quadrado arredondado, sem numero ou legenda. O empacotamento copia
 esse arquivo diretamente; `scripts/make_icon.py` apenas valida a estrutura,
 sem regenerar o icone anterior de pasta.
 
-Na versao 1.0, a arte de 256x256 foi centralizada num canvas transparente de
-300x300, sem ampliacao ou redesenho. As margens adicionais reduzem a ocupacao
-visual quando o launcher escala a imagem para uma area fixa. O posicionamento
-do nome e controlado pelo launcher CrossMix; conferir o alinhamento no console.
+O canvas e 300x300, mas a ilustracao foi reduzida para caber numa area de
+170x170 a partir de (65,25), deixando o rodape transparente para o nome. Essa
+area foi medida diretamente nos icones oficiais de User Guide e PortMaster
+da tag CrossMix v1.3.0: limites visiveis (65,25)-(235,195). A imagem final tem
+limites alfa (65,25)-(233,195), devido aos pixels suavizados das bordas.
+
+As tentativas anteriores com arte maior/centralizada sobrepunham o titulo, como
+mostrou a foto enviada pelo usuario. Corrigir so as dimensoes externas nao era
+suficiente. `make_icon.py` e a auditoria do pacote agora verificam tambem a area
+visivel e a transparencia inferior. O posicionamento do nome continua sendo
+controlado pelo launcher; o resultado final exige conferencia no console.
 
 Para atualizar somente o icone, com o app fechado, extraia
-`DriveBrowser-icone-D-na-nuvem.zip` na raiz do microSD e substitua
+`DriveBrowser-icone-D-na-nuvem-CrossMix.zip` na raiz do microSD e substitua
 `Apps/DriveBrowser/icon.png`. O ZIP contem apenas esse arquivo. Atualize a lista
 de aplicativos ou reinicie a interface do CrossMix se a imagem antiga estiver
 em cache. A exibicao no launcher fisico ainda precisa ser conferida no console.

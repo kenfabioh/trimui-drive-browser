@@ -49,14 +49,14 @@ cartão e da configuração pode precisar de um computador; **durante o uso norm
 não é necessário computador ou celular**. A interface não realiza login OAuth.
 
 O mantenedor relatou funcionamento no modelo alvo. Os testes automatizados usam
-Linux e emulação ARM64 com arquivos locais. A versão 1.0.0 consolida os recursos
+Linux e emulação ARM64 com arquivos locais. A versão 1.0.1 consolida os recursos
 já testados em uso e o novo ícone 300 × 300; não estabelece compatibilidade com
 Smart Pro S, Brick, outros sistemas ou todas as revisões de firmware.
 [Evidências e limites da validação](docs/VALIDATION.md).
 
 ## Instalação
 
-1. Baixe **`DriveBrowser-1.0.0-arm64.zip`** na página de Releases. O arquivo
+1. Baixe **`DriveBrowser-1.0.1-arm64.zip`** na página de Releases. O arquivo
    **Source code** do GitHub é o código-fonte, não o aplicativo pronto.
 2. Extraia o ZIP na **raiz do microSD**. A estrutura deve ficar assim:
 
@@ -152,7 +152,7 @@ sem mudar de pasta. Enquanto o foco está nas letras, X não baixa arquivos.
 - [Configurar o Drive, solucionar erros e pedir ajuda](docs/AJUDA.md)
 - [Guia detalhado: destinos, controles, desempenho e recuperação](docs/GUIA.md)
 - [Compilar, testar e contribuir](CONTRIBUTING.md)
-- [Notas da versão 1.0.0](docs/RELEASE-v1.0.0.md) · [Histórico](CHANGELOG.md)
+- [Notas da versão 1.0.1](docs/RELEASE-v1.0.1.md) · [Histórico](CHANGELOG.md)
 - [Arquitetura e pesquisa de compatibilidade](docs/ARCHITECTURE.md)
 
 Licença **GPL-3.0**. Bibliotecas, fontes, rclone e certificados têm suas próprias

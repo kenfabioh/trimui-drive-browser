@@ -1,6 +1,6 @@
 # Guia detalhado — Drive Browser
 
-Versao **1.0.0** de um navegador grafico do Google Drive
+Versao **1.0.1** de um navegador grafico do Google Drive
 para o TrimUI Smart Pro original com CrossMix OS 1.3.0. Interface C++/SDL2 em
 1280 × 720, backend rclone 1.69.1 ARM64 e dados no microSD.
 
@@ -14,7 +14,7 @@ Veja [evidencias e validacao pendente](VALIDATION.md) e
 
 ## Instalar
 
-1. Extraia `DriveBrowser-1.0.0-arm64.zip` na **raiz do microSD**. O resultado deve
+1. Extraia `DriveBrowser-1.0.1-arm64.zip` na **raiz do microSD**. O resultado deve
    ser `Apps/DriveBrowser/launch.sh` (nao `Apps/Apps/DriveBrowser`).
 2. Copie o seu **rclone.conf autenticado existente** para
    `Apps/DriveBrowser/config/rclone.conf`. Nao renomeie o exemplo como se ele
@@ -235,7 +235,7 @@ make test-ui test-ui-arm64 # teclado, pesquisa, selecao e download com rclone lo
 make test-input test-input-arm64 # repeticao, zona morta e arbitragem das direcoes
 make smoke-native        # SDL do computador, botoes simulados/menu/captura
 make smoke-arm64         # SDL do pacote, driver offscreen, via QEMU
-make package             # dist/DriveBrowser-1.0.0-arm64.zip e SHA256
+make package             # dist/DriveBrowser-1.0.1-arm64.zip e SHA256
 python3 scripts/verify_package.py
 ```
 

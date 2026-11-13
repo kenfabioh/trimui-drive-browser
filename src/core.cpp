@@ -148,7 +148,9 @@ void Process::start(const std::vector<std::string>& args, int outputFd) {
         close(o[0]); close(o[1]); close(e[0]); close(e[1]);
         execv(argv[0],argv.data());
         const char msg[]="Nao foi possivel executar rclone\n";
-        write(STDERR_FILENO,msg,sizeof(msg)-1); _exit(127);
+        ssize_t written;
+        do { written=write(STDERR_FILENO,msg,sizeof(msg)-1); } while(written<0 && errno==EINTR);
+        _exit(127);
     }
     close(o[1]); close(e[1]);
     if (pid_<0) { close(o[0]); close(e[0]); fail("fork"); }

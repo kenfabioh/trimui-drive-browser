@@ -1,5 +1,17 @@
 # Histórico / Changelog
 
+## 1.0.1 — 2026-11-13
+
+- Corrige a conferência do retorno de escrita no processo filho, permitindo
+  compilar com as verificações adicionais do Ubuntu.
+- Publicação por workflow manual, usando token temporário do GitHub para enviar
+  e verificar os arquivos da release antes de publicá-la.
+- Recursos e controles permanecem iguais aos da versão 1.0 consolidada.
+
+Native Ubuntu build fix: check the child error-write result. Release assets are
+uploaded and verified through a manually dispatched GitHub Actions workflow.
+
+
 ## 1.0.0 — 2026-11-13
 
 Primeira versão pública consolidada; reúne o comportamento desenvolvido e

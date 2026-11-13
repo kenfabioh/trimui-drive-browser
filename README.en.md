@@ -26,7 +26,7 @@ valid existing credentials do not need to be authenticated again.
 
 ## Install or update
 
-1. Download **`DriveBrowser-1.0.0-arm64.zip`** from Releases. GitHub's automatic
+1. Download **`DriveBrowser-1.0.1-arm64.zip`** from Releases. GitHub's automatic
    **Source code** archive is not the ready-to-run application.
 2. Extract the ZIP to the **root of your microSD**. You should have
    `Apps/DriveBrowser/launch.sh`, not `Apps/Apps/DriveBrowser/launch.sh`.
@@ -119,7 +119,7 @@ If reporting a bug, include model, OS/firmware, app version, steps and a sanitiz
 error screenshot. Do not share tokens, client secrets, private filenames or config.
 
 [Build/contribution guide](CONTRIBUTING.md) · [Validation](docs/VALIDATION.md) ·
-[Release notes](docs/RELEASE-v1.0.0.md) · [Licenses](app/licenses/NOTICE.md)
+[Release notes](docs/RELEASE-v1.0.1.md) · [Licenses](app/licenses/NOTICE.md)
 
 GPL-3.0; bundled components retain their respective licenses. The approved icon
 is a 300 × 300 RGBA PNG. Development/advanced documentation is primarily Portuguese.

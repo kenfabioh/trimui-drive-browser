@@ -368,7 +368,7 @@ class App {
         SDL_SetRenderDrawColor(renderer,15,21,34,255);SDL_RenderClear(renderer);
         SDL_Color white={235,240,250,255},muted={155,174,196,255},accent={89,225,184,255};
         text("DRIVE BROWSER",36,24,accent,900,true);
-        text("v1.0.0  |  somente leitura",780,35,muted,460);
+        text("v1.0.1  |  somente leitura",780,35,muted,460);
         std::string location="Remotes do rclone";
         if(screen==Screen::Files) location=remote+":"+join(path);
         if(screen==Screen::Roots) location="Escolher raiz permitida no microSD";

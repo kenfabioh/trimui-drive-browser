@@ -4,6 +4,18 @@
 
 ## Configurar o Google Drive
 
+**Criando seu Client ID e Client Secret**
+
+Antes de configurar um novo remote do Google Drive no rclone, crie seu próprio
+**Client ID** e **Client Secret**, seguindo o
+[guia oficial do rclone](https://rclone.org/drive/#making-your-own-client-id).
+
+Durante o comando `rclone config`, informe essas credenciais nos campos
+`client_id` e `client_secret` e prossiga com a autorização da conta Google.
+
+**Já possui um `rclone.conf` autenticado e funcionando?** Você pode continuar
+utilizando esse arquivo no Drive Browser, sem refazer a configuração.
+
 **Já usa rclone?** No computador em que ele funciona, execute:
 
 ```sh
